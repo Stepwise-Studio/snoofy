@@ -107,10 +107,13 @@ def apps() -> list[dict]:
 def _find(app_name: str, window: str = ""):
     """The app (by name, or a window title it has) and one window: the named one, else its active one, else its first."""
     want, wtitle = app_name.strip().lower(), window.strip().lower()
+    flat = re.sub(r"[^a-z0-9]", "", want)  # the window list's "org.gnome.TextEditor" is AT-SPI's "gnome-text-editor"
     hits = []
     for app, name, wins in _apps():
         titles = [(j, w, _s(w.get_name).lower()) for j, w in wins]
-        if want and want not in name.lower() and not any(want in t for _, _, t in titles):
+        named = re.sub(r"[^a-z0-9]", "", name.lower())
+        if want and want not in name.lower() and not (flat and named and (flat in named or named in flat)) \
+                and not any(want in t or wtitle and wtitle in t for _, _, t in titles):
             continue
         hits.append((app, name, titles))
     if not hits:
