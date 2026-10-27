@@ -6,7 +6,7 @@
 //   Hotkey(accel) -> ok                           take a global shortcut ("<Super>z", "" to let it go)
 //   signal Summon()                               it was pressed
 //   Pill(JSON)                                    the card by the pointer: {state, verb, turns: [{you, reply, detail}], level}
-//                                                 (state "hide" closes it; its × emits Summon, like the shortcut)
+//                                                 (state "hide" closes it; its × closes it and emits Dismiss)
 // Geometry is worked out here so a move is one round trip.
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
@@ -24,6 +24,7 @@ const XML = `<node><interface name="studio.stepwise.Snoofy">
   <method name="Hotkey"><arg type="s" direction="in" name="accel"/><arg type="b" direction="out" name="ok"/></method>
   <method name="Pill"><arg type="s" direction="in" name="json"/></method>
   <signal name="Summon"/>
+  <signal name="Dismiss"/>
 </interface></node>`;
 
 // The card by the pointer while an agent listens and works: a blue gradient, a line that says what it's doing (a
@@ -202,8 +203,9 @@ function cancel(id) {
 }
 
 class Service {
-    constructor(summon) {
+    constructor(summon, dismiss) {
         this._summon = summon;
+        this._dismiss = dismiss;
         this._grab = 0;
         this._pill = null;
         this._pressed = global.display.connect('accelerator-activated', (_d, action) => {
@@ -232,7 +234,11 @@ class Service {
             this._pill = null;
             return;
         }
-        this._pill ??= new Pill(() => this._summon());
+        this._pill ??= new Pill(() => {
+            this._pill?.close();
+            this._pill = null;
+            this._dismiss();
+        });
         this._pill.set(a);
     }
 
@@ -324,7 +330,7 @@ class Service {
 
 export default class Snoofy extends Extension {
     enable() {
-        this._service = new Service(() => this._dbus?.emit_signal('Summon', null));
+        this._service = new Service(() => this._dbus?.emit_signal('Summon', null), () => this._dbus?.emit_signal('Dismiss', null));
         this._dbus = Gio.DBusExportedObject.wrapJSObject(XML, this._service);
         this._dbus.export(Gio.DBus.session, '/studio/stepwise/Snoofy');
     }

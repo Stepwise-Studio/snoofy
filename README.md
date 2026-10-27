@@ -44,7 +44,7 @@ and log out and back in: GNOME loads new shell extensions only at log-in. `statu
 - **Keys**: through GNOME's remote-desktop interface, the only way to type on Wayland.
 - **For apps that build on it** (a voice assistant, say): the extension also takes a global shortcut
   (`Hotkey("<Super>z")`, signal `Summon` a few ms after the press) and draws a small status pill by the pointer
-  (`Pill({"state": "listening", "text": "…", "level": 0.4})`), on `org.gnome.Shell /studio/stepwise/Snoofy`.
+  (`Pill({"state": "working", "verb": "Typing in Zen", "turns": [{"you": "…", "reply": "…", "detail": "…"}]})`; its × emits `Dismiss`), on `org.gnome.Shell /studio/stepwise/Snoofy`.
 
 ## Develop
 
