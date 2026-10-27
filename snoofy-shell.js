@@ -15,7 +15,6 @@ import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
-import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -63,9 +62,10 @@ class Pill {
         this.dot = new St.Widget({style: `width: 9px; height: 9px; border-radius: 99px; background-color: ${INK};`,
             y_align: Clutter.ActorAlign.CENTER});
         this.dot.set_pivot_point(0.5, 0.5);
-        this.spinner = new Animation.Spinner(16, {animate: true});
-        this.spinner.style = `color: ${INK};`;  // a symbolic icon: it takes the text colour (dark by default)
-        this.spinner.hide();
+        // A white ring with one bright side, turning: GNOME's own spinner is drawn dark and won't take a colour.
+        this.spinner = new St.Widget({style: 'width: 12px; height: 12px; border-radius: 99px; border: 2px solid rgba(255,255,255,0.28);' +
+            `border-top-color: ${INK}; border-right-color: ${INK};`, y_align: Clutter.ActorAlign.CENTER, visible: false});
+        this.spinner.set_pivot_point(0.5, 0.5);
         this.verb = new St.Label({style: `color: ${INK}; font-size: 13px; font-weight: 600;`, x_expand: true,
             y_align: Clutter.ActorAlign.CENTER});
         this.verb.clutter_text.ellipsize = Pango.EllipsizeMode.END;
@@ -102,10 +102,14 @@ class Pill {
             const busy = a.state === 'working' || a.state === 'thinking';
             this.spinner.visible = busy;
             this.dot.visible = !busy;
-            if (busy)
-                this.spinner.play();
-            else
-                this.spinner.stop();
+            if (busy && !this.turning) {
+                this.turning = true;
+                this.spinner.rotation_angle_z = 0;
+                this.spinner.ease({rotation_angle_z: 360, duration: 800, mode: Clutter.AnimationMode.LINEAR, repeatCount: -1});
+            } else if (!busy && this.turning) {
+                this.turning = false;
+                this.spinner.remove_all_transitions();
+            }
             this.dot.opacity = a.state === 'listening' ? 255 : 150;
             this.verb.text = a.verb || VERB[a.state] || '';
         }
@@ -144,7 +148,7 @@ class Pill {
 
     close() {
         const box = this.box;
-        this.spinner.stop();
+        this.spinner.remove_all_transitions();
         box.ease({opacity: 0, scale_x: 0.97, scale_y: 0.97, duration: 150, mode: Clutter.AnimationMode.EASE_IN_QUAD,
             onComplete: () => {
                 Main.layoutManager.removeChrome(box);
