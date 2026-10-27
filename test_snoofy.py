@@ -45,3 +45,8 @@ def test_mcp_lists_and_calls_tools():
     bad = M.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "act", "arguments": {
         "snapshot": "s999", "element": "e1", "action": "CLICK"}}})["result"]
     assert bad["isError"] and "Snapshot s999 is gone" in bad["content"][0]["text"]
+
+
+def test_risky_labels():
+    assert D.risky("Delete Draft") and D.risky("Send") and D.risky("Place order")
+    assert not D.risky("Clear") and not D.risky("Close") and not D.risky("Sender")

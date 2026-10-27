@@ -13,6 +13,7 @@ to settle (until its accessibility events go quiet), then returns the new snapsh
 Window control, the global hotkey and the status pill live in Snoofy's GNOME Shell extension (snoofy-shell.js).
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -428,6 +429,27 @@ def act(sid: str, element: str, action: str, value: str = "") -> dict:
         did = _do(dest, path, e, action, value)
         reacted = ev.settle()
     return {"status": "done", "did": did, "reacted": reacted, **observe(snap["app"], snap["title"])}
+
+
+# Labels that read like something the user would lose or couldn't take back (arc-cua's risk words, minus the routine
+# "close" and "clear"). Callers ask the user before pressing one: act() itself doesn't refuse, the caller decides.
+RISKY = re.compile(r"\b(delete|remove|erase|trash|discard|clear all|empty trash|permanently|send|post|publish|share|"
+                   r"reply all|forward|tweet|buy|purchase|pay|checkout|check out|place order|order now|subscribe|donate|"
+                   r"quit|sign out|log out|logout|shut down|restart|uninstall|reset)\b", re.I)
+
+
+def risky(name: str) -> bool:
+    return bool(RISKY.search(name or ""))
+
+
+def element(sid: str, eid: str) -> dict:
+    """One element of a snapshot, as observe() returned it."""
+    snap = _snaps.get(sid)
+    if not snap:
+        raise LookupError(f"Snapshot {sid} is gone; look again.")
+    if eid not in snap["elements"]:
+        raise LookupError(f"No element {eid} in snapshot {sid}.")
+    return snap["elements"][eid]
 
 
 def _ok(v) -> bool:
