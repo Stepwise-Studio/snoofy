@@ -1,0 +1,7 @@
+{
+  "uuid": "snoofy@stepwise.studio",
+  "name": "Snoofy",
+  "description": "Snoofy's part inside GNOME Shell: lists, moves and resizes windows, takes a global shortcut and draws a small status pill, for computer-use agents. Nothing runs until it's asked.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/Stepwise-Studio/snoofy"
+}
