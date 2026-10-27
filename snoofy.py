@@ -219,10 +219,10 @@ def _read(dest: str, root: str) -> list[dict]:
                         loop.quit()
             bus.call(dest, path, iface, method, args, None, 0, 3000, None, done)
 
-        def visit(path: str, order: tuple, depth: int, parent: str) -> None:
+        def visit(path: str, order: tuple, depth: int, parent: str, web: bool = False) -> None:
             if len(nodes) >= MAX_NODES or depth > MAX_DEPTH:
                 return
-            n = nodes[path] = {"path": path, "order": order, "depth": depth, "parent": parent}
+            n = nodes[path] = {"path": path, "order": order, "depth": depth, "parent": parent, "web": web}
             got: dict = {}
 
             def part(key):
@@ -239,10 +239,15 @@ def _read(dest: str, root: str) -> list[dict]:
 
         def basics(n: dict, got: dict) -> None:
             states = _state_names(got["state"][0]) if got["state"] else set()
-            if n["depth"] and ("showing" not in states or "visible" not in states) or not got["role"]:
+            role = _role(got["role"][0]) if got["role"] else ""
+            # Browsers leave "showing" off a page's containers even when they're on screen: inside a web page, walk
+            # through them (the cap on nodes still holds) and list only what's on screen.
+            web = n["web"] or role in ("document web", "document frame")
+            if not role or n["depth"] and ("visible" not in states or "showing" not in states and not n["web"]):
                 n["skip"] = True
                 return
-            role, ifaces = _role(got["role"][0]), set(got["ifaces"][0] if got["ifaces"] else ())
+            n["web"], n["hidden"] = web, "showing" not in states
+            ifaces = set(got["ifaces"][0] if got["ifaces"] else ())
             n.update(role=role, states=states, ifaces=ifaces, names=[],
                      name=" ".join(str(got["name"][0] if got["name"] else "").split())[:120])
             if n["depth"]:
@@ -262,7 +267,7 @@ def _read(dest: str, root: str) -> list[dict]:
                     call(path, PROPS, "Get", GLib.Variant("(ss)", (I_TEXT, "CharacterCount")), count)
             for i, (d, p) in enumerate((got["kids"][0] if got["kids"] else [])[:400]):
                 if d == dest and p not in nodes:
-                    visit(p, n["order"] + (i,), n["depth"] + 1, n["name"])
+                    visit(p, n["order"] + (i,), n["depth"] + 1, n["name"], n["web"])
 
         visit(root, (), 0, "")
         stop = GLib.timeout_source_new(5000)
@@ -279,7 +284,7 @@ def _read(dest: str, root: str) -> list[dict]:
 def _walk(dest: str, root: str, pid: int) -> list[dict]:
     out: list[dict] = []
     for n in _read(dest, root):
-        if not n["depth"]:
+        if not n["depth"] or n.get("hidden"):
             continue
         acts, value = _actions(n["names"], n["ifaces"], n["role"], n["states"]), _value(n)
         echo = not acts and not value and n["name"] == n["parent"]  # a label repeating its button's name
